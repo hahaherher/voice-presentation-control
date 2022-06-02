@@ -1,20 +1,21 @@
+import json
+import os
 from typing import Optional
-import speech_recognition as sr
+
+import vosk
 
 
 class Recognizer:
-    def __init__(self) -> None:
-        self.r = sr.Recognizer()
-
-    def recognize(self, filename: str) -> Optional[str]:
-        with sr.AudioFile(filename) as source:
-            audio = self.r.record(source)
-
+    def __init__(self, lang: str) -> None:
+        vosk.SetLogLevel(-1)
         try:
-            return self.r.recognize_sphinx(audio)
-        except sr.UnknownValueError:
-            # print("Audio parse error.")
-            pass
-        except sr.RequestError as e:
-            # print("Sphinx error: {0}".format(e))
-            pass
+            self.model = vosk.Model(os.path.join(os.path.dirname(__file__)) + f"/vosk_models/{lang}")
+        except FileNotFoundError:
+            raise FileNotFoundError(f"Language '{lang}' is not supported.")
+
+    def recognize(self, data: bytes, rate: int) -> Optional[str]:
+        rec = vosk.KaldiRecognizer(self.model, rate)
+        rec.SetWords(True)
+        rec.AcceptWaveform(data)
+
+        return json.loads(rec.FinalResult())["text"]
